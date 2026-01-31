@@ -7,6 +7,7 @@ The system supports CRUD operations, soft delete with restore (30-day limit), se
 
 Check out the live application here:
 Product Management System
+https://product-management-system-lyart.vercel.app/
 
 🚀 Features
 Backend (Node.js + Express + MySQL)
