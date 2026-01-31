@@ -12,6 +12,6 @@ export const updateProduct = (id, data) =>
 export const deleteProduct = (id) =>
   API.delete(`/products/${id}`);
 
-// 🔹 NEW – restore product
+
 export const restoreProduct = (id) =>
   API.put(`/products/${id}/restore`);
