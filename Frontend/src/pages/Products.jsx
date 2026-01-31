@@ -1,50 +1,195 @@
+// import { useEffect, useState } from "react";
+// import { Button } from "react-bootstrap";
+// import {
+//   getProducts,
+//   addProduct,
+//   updateProduct,
+//   deleteProduct,
+//   restoreProduct,
+// } from "../api/productApi";
+
+// import ProductTable from "../components/ProductTable";
+// import ProductModal from "../components/ProductModal";
+// import LoadingSpinner from "../components/LoadingSpinner";
+// import ErrorAlert from "../components/ErrorAlert";
+
+// const Products = () => {
+//   const [products, setProducts] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState("");
+//   const [showModal, setShowModal] = useState(false);
+//   const [selected, setSelected] = useState(null);
+//   const [showDeleted, setShowDeleted] = useState(false);
+
+//   const loadProducts = async () => {
+//     try {
+//       setError("");
+//       setLoading(true);
+//       const res = await getProducts();
+//       setProducts(res.data);
+//     } catch {
+//       setError("Failed to load products");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     loadProducts();
+//   }, []);
+
+//   const handleSave = async (data) => {
+//     try {
+//       selected
+//         ? await updateProduct(selected.id, data)
+//         : await addProduct(data);
+//       setShowModal(false);
+//       setSelected(null);
+//       loadProducts();
+//     } catch {
+//       setError("Save failed");
+//     }
+//   };
+
+//   const handleDelete = async (id) => {
+//     try {
+//       await deleteProduct(id);
+//       loadProducts();
+//     } catch {
+//       setError("Delete failed");
+//     }
+//   };
+
+//   const handleRestore = async (id) => {
+//     try {
+//       await restoreProduct(id);
+//       loadProducts();
+//     } catch (err) {
+//       setError(err.response?.data?.error || "Restore failed");
+//     }
+//   };
+
+//   const visibleProducts = showDeleted
+//     ? products.filter(p => p.deleted_at)
+//     : products.filter(p => !p.deleted_at);
+
+//   return (
+//     <div className="container mt-4">
+//       <h3>Product Management</h3>
+
+//       <ErrorAlert message={error} />
+
+//       <div className="d-flex justify-content-between mb-3">
+//         <Button
+//           variant="secondary"
+//           onClick={() => setShowDeleted(!showDeleted)}
+//         >
+//           {showDeleted ? "Show Active" : "Show Deleted"}
+//         </Button>
+
+//         {!showDeleted && (
+//           <Button
+//             onClick={() => {
+//               setSelected(null);
+//               setShowModal(true);
+//             }}
+//           >
+//             Add Product
+//           </Button>
+//         )}
+//       </div>
+
+//       {loading ? (
+//         <LoadingSpinner />
+//       ) : (
+//         <ProductTable
+//           products={visibleProducts}
+//           onEdit={(p) => {
+//             setSelected(p);
+//             setShowModal(true);
+//           }}
+//           onDelete={handleDelete}
+//           onRestore={handleRestore}
+//           showDeleted={showDeleted}
+//         />
+//       )}
+
+//       <ProductModal
+//         show={showModal}
+//         onHide={() => setShowModal(false)}
+//         onSave={handleSave}
+//         product={selected}
+//       />
+//     </div>
+//   );
+// };
+
+// export default Products;
 import { useEffect, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button } from "react-bootstrap";
+
 import {
   getProducts,
   addProduct,
   updateProduct,
   deleteProduct,
+  restoreProduct,
 } from "../api/productApi";
-import ProductTable from "../components/ProductTable";
+
+import DataTable from "../components/DataTable";
 import ProductModal from "../components/ProductModal";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorAlert from "../components/ErrorAlert";
 
 const Products = () => {
+  /* ================= STATE ================= */
   const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [selected, setSelected] = useState(null);
 
+  const [showModal, setShowModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showDeleted, setShowDeleted] = useState(false);
+
+  /* ================= TABLE COLUMNS ================= */
+  const columns = [
+    { key: "id", label: "ID", sortable: true, type: "number" },
+    { key: "name", label: "Name", sortable: true, type: "string" },
+    { key: "price", label: "Price", sortable: true, type: "number" },
+  ];
+
+  /* ================= LOAD PRODUCTS ================= */
   const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const res = await getProducts();
-      setProducts(res.data);
-    } catch {
-      setError("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    const res = await getProducts(showDeleted);
+    setProducts(res.data);
+  } catch {
+    setError("Failed to load products");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+  loadProducts();
+}, [showDeleted]);
 
+
+  /* ================= CRUD HANDLERS ================= */
   const handleSave = async (data) => {
     try {
-      selected
-        ? await updateProduct(selected.id, data)
-        : await addProduct(data);
+      if (selectedProduct) {
+        await updateProduct(selectedProduct.id, data);
+      } else {
+        await addProduct(data);
+      }
       setShowModal(false);
-      setSelected(null);
+      setSelectedProduct(null);
       loadProducts();
     } catch {
-      setError("Save failed");
+      setError("Failed to save product");
     }
   };
 
@@ -53,15 +198,23 @@ const Products = () => {
       await deleteProduct(id);
       loadProducts();
     } catch {
-      setError("Delete failed");
+      setError("Failed to delete product");
     }
   };
 
-  const filteredProducts = products.filter((p) =>
-    `${p.name} ${p.category}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const handleRestore = async (id) => {
+    try {
+      await restoreProduct(id);
+      loadProducts();
+    } catch (err) {
+      setError(err.response?.data?.error || "Restore failed");
+    }
+  };
+
+  /* ================= FILTER ACTIVE / DELETED ================= */
+  const visibleProducts = showDeleted
+    ? products.filter(p => p.deleted_at)
+    : products.filter(p => !p.deleted_at);
 
   return (
     <div className="container mt-4">
@@ -69,43 +222,74 @@ const Products = () => {
 
       <ErrorAlert message={error} />
 
-      {/* HEADER */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <Form.Control
-          style={{ maxWidth: "300px" }}
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-
+      {/* HEADER ACTIONS */}
+      <div className="d-flex justify-content-between mb-3">
         <Button
-          onClick={() => {
-            setSelected(null);
-            setShowModal(true);
-          }}
+          variant="secondary"
+          onClick={() => setShowDeleted(!showDeleted)}
         >
-          Add Product
+          {showDeleted ? "Show Active" : "Show Deleted"}
         </Button>
+
+        {!showDeleted && (
+          <Button
+            onClick={() => {
+              setSelectedProduct(null);
+              setShowModal(true);
+            }}
+          >
+            Add Product
+          </Button>
+        )}
       </div>
 
+      {/* CONTENT */}
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <ProductTable
-          products={filteredProducts}
-          onEdit={(p) => {
-            setSelected(p);
-            setShowModal(true);
-          }}
-          onDelete={handleDelete}
+        <DataTable
+          columns={columns}
+          data={visibleProducts}
+          pageSize={5}
+          renderActions={(product) =>
+            !showDeleted ? (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setSelectedProduct(product);
+                    setShowModal(true);
+                  }}
+                >
+                  Edit
+                </Button>{" "}
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleDelete(product.id)}
+                >
+                  Delete
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="success"
+                onClick={() => handleRestore(product.id)}
+              >
+                Restore
+              </Button>
+            )
+          }
         />
       )}
 
+      {/* MODAL */}
       <ProductModal
         show={showModal}
         onHide={() => setShowModal(false)}
         onSave={handleSave}
-        product={selected}
+        product={selectedProduct}
       />
     </div>
   );
